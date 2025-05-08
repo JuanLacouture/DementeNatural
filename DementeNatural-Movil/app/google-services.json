@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "209485528964",
+    "project_id": "dementenatural2025-1",
+    "storage_bucket": "dementenatural2025-1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:209485528964:android:50ac09bc5243830aa4e7d1",
+        "android_client_info": {
+          "package_name": "com.example.dementenatural"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlNbNjDEClIx-riXQKurbCCScal2xP6h8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
