@@ -1,15 +1,19 @@
+// Menu_Trabajador.kt
 package com.example.dementenatural
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.firebase.auth.FirebaseAuth
 
 class Menu_Trabajador : AppCompatActivity() {
 
+    private lateinit var welcomeMessage: TextView
     private lateinit var cardRegistrarVenta: CardView
     private lateinit var cardWhatsapp: CardView
     private lateinit var cardConsultarInventario: CardView
@@ -19,31 +23,34 @@ class Menu_Trabajador : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(R.layout.activity_menu_trabajador)
 
-        // Ajuste de insets para edge-to-edge
+        // Insets
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
-        // Referencias a los CardViews
-        cardRegistrarVenta       = findViewById(R.id.cardRegistrarVenta)
-        cardWhatsapp             = findViewById(R.id.cardWhatsapp)
-        cardConsultarInventario  = findViewById(R.id.cardConsultarInventario)
+        // Firebase Auth
+        val auth = FirebaseAuth.getInstance()
+        val email = auth.currentUser?.email ?: "usuario"
 
-        // Al hacer click, navegamos según el botón
+        // Referencias UI
+        welcomeMessage         = findViewById(R.id.welcomeMessage)
+        cardRegistrarVenta     = findViewById(R.id.cardRegistrarVenta)
+        cardWhatsapp           = findViewById(R.id.cardWhatsapp)
+        cardConsultarInventario= findViewById(R.id.cardConsultarInventario)
+
+        // Mostrar correo en bienvenida
+        welcomeMessage.text = "Bienvenido, $email"
+
+        // Navegación
         cardRegistrarVenta.setOnClickListener {
-            // Navegar a la pantalla de registro de venta
             startActivity(Intent(this, Registrar_Venta::class.java))
         }
-
         cardWhatsapp.setOnClickListener {
-            // Navegar a la pantalla de generación de enlace de WhatsApp
             startActivity(Intent(this, Generar_Enlace::class.java))
         }
-
         cardConsultarInventario.setOnClickListener {
-            // Navegar a la pantalla de consulta de inventario
             startActivity(Intent(this, Consultar_Inventario::class.java))
         }
     }
