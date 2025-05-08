@@ -1,4 +1,3 @@
-// Menu_Admin.kt
 package com.example.dementenatural
 
 import android.content.Intent
@@ -10,6 +9,7 @@ import androidx.cardview.widget.CardView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.*
 
 class Menu_Admin : AppCompatActivity() {
 
@@ -20,32 +20,55 @@ class Menu_Admin : AppCompatActivity() {
     private lateinit var cardWhatsapp: CardView
     private lateinit var registerNewUser: TextView
 
+    // Firebase
+    private lateinit var auth: FirebaseAuth
+    private lateinit var mDBRef: DatabaseReference
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_menu_admin)
 
-        // Insets
+        // Insets para edge-to-edge
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
-        // Firebase Auth
-        val auth = FirebaseAuth.getInstance()
-        val email = auth.currentUser?.email ?: "usuario"
+        // Inicializar Firebase
+        auth   = FirebaseAuth.getInstance()
+        mDBRef = FirebaseDatabase.getInstance().reference
 
         // Referencias UI
-        welcomeMessage    = findViewById(R.id.welcomeMessage)
-        cardInventory     = findViewById(R.id.cardInventory)
-        cardSales         = findViewById(R.id.cardSales)
-        cardConsult       = findViewById(R.id.cardConsult)
-        cardWhatsapp      = findViewById(R.id.cardWhatsapp)
-        registerNewUser   = findViewById(R.id.registerNewUser)
+        welcomeMessage  = findViewById(R.id.welcomeMessage)
+        cardInventory   = findViewById(R.id.cardInventory)
+        cardSales       = findViewById(R.id.cardSales)
+        cardConsult     = findViewById(R.id.cardConsult)
+        cardWhatsapp    = findViewById(R.id.cardWhatsapp)
+        registerNewUser = findViewById(R.id.registerNewUser)
 
-        // Mostrar correo en bienvenida
-        welcomeMessage.text = "Bienvenido, $email"
+        // Mostrar email y (después) sede
+        val email = auth.currentUser?.email ?: "usuario"
+        welcomeMessage.text = "Bienvenido, $email\nCargando sede..."
+
+        // Leer la sede en Realtime DB
+        auth.currentUser?.uid?.let { uid ->
+            mDBRef.child("Users")
+                .child(uid)
+                .child("sede")
+                .addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        val sede = snapshot.getValue(String::class.java) ?: "Sede desconocida"
+                        // Actualizo el texto con dos líneas
+                        welcomeMessage.text = "Bienvenido, $email\nSede: $sede"
+                    }
+                    override fun onCancelled(error: DatabaseError) {
+                        // En caso de error, muestro al menos el email
+                        welcomeMessage.text = "Bienvenido, $email\n(Sede no disponible)"
+                    }
+                })
+        }
 
         // Navegación
         cardInventory.setOnClickListener {
