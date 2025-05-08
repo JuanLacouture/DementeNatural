@@ -4,125 +4,150 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.Spinner
-import android.widget.TextView
+import android.widget.*
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 
 class Registro : AppCompatActivity() {
 
     private lateinit var spinnerRol: Spinner
     private lateinit var spinnerSede: Spinner
+    private lateinit var editEmail: EditText
+    private lateinit var editPassword: EditText
+    private lateinit var buttonRegistrar: Button
+
+    // Firebase
+    private lateinit var auth: FirebaseAuth
+    private lateinit var mDBRef: DatabaseReference
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_registro)
 
+        // Ajuste de insets para edge-to-edge
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
-        // Inicializar vistas
-        spinnerRol = findViewById(R.id.spinnerRol)
-        spinnerSede = findViewById(R.id.spinnerSede)
+        // Inicializar Firebase
+        auth = FirebaseAuth.getInstance()
+        mDBRef = FirebaseDatabase.getInstance().reference
 
-        // Configurar spinner de Rol
+        // Referencias UI
+        spinnerRol      = findViewById(R.id.spinnerRol)
+        spinnerSede     = findViewById(R.id.spinnerSede)
+        editEmail       = findViewById(R.id.editEmail)
+        editPassword    = findViewById(R.id.editPassword)
+        buttonRegistrar = findViewById(R.id.buttonRegistrar)
+
+        // Configurar spinners con hint y valores personalizados
         setupHintSpinner(
             spinnerRol,
-            "Rol",
-            arrayOf("Administrador", "Usuario", "Invitado")
+            "Selecciona rol",
+            arrayOf("Administrador", "Trabajador")
         )
-
-        // Configurar spinner de Sede
         setupHintSpinner(
             spinnerSede,
-            "Sede",
-            arrayOf("Lima", "Arequipa", "Trujillo")
+            "Selecciona sede",
+            arrayOf("Sede1", "Sede2", "Sede3")
         )
 
-        // Aquí puedes agregar el resto de tu inicialización, como listeners para el botón de registro, etc.
+        // Al pulsar Registrar
+        buttonRegistrar.setOnClickListener {
+            val email    = editEmail.text.toString().trim()
+            val password = editPassword.text.toString().trim()
+            val rolPos   = spinnerRol.selectedItemPosition
+            val sedePos  = spinnerSede.selectedItemPosition
+
+            // Validaciones
+            if (email.isEmpty() || password.isEmpty()) {
+                Toast.makeText(this, "Email y contraseña son obligatorios", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                Toast.makeText(this, "Ingresa un correo válido", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (password.length < 6) {
+                Toast.makeText(this, "La contraseña debe tener al menos 6 caracteres", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (rolPos == 0 || sedePos == 0) {
+                Toast.makeText(this, "Por favor selecciona rol y sede", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val rol  = spinnerRol.selectedItem as String
+            val sede = spinnerSede.selectedItem as String
+
+            registerUser(email, password, rol, sede)
+        }
+    }
+
+    private fun registerUser(email: String, password: String, rol: String, sede: String) {
+        // Crear usuario en Firebase Auth
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    // Usuario creado, ahora guardamos datos adicionales en Realtime DB
+                    val uid = auth.currentUser?.uid ?: return@addOnCompleteListener
+                    val user = User(uid, email, rol, sede)
+                    mDBRef.child("Users").child(uid).setValue(user)
+                        .addOnSuccessListener {
+                            Toast.makeText(this, "Registro exitoso", Toast.LENGTH_SHORT).show()
+                            // Aquí podrías navegar a otra Activity, p.ej. Login o Main
+                            finish()
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(this, "Error al guardar datos: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                } else {
+                    Toast.makeText(this, "Error de registro: ${task.exception?.message}", Toast.LENGTH_LONG).show()
+                }
+            }
     }
 
     private fun setupHintSpinner(spinner: Spinner, hintText: String, items: Array<String>) {
-        // Crear la lista con el hint como primer elemento
         val allItems = mutableListOf<String>()
-        allItems.add(hintText)  // El primer elemento es el hint
+        allItems.add(hintText)
         allItems.addAll(items)
 
-        // Crear adaptador personalizado
-        val adapter = object : ArrayAdapter<String>(
-            this,
-            android.R.layout.simple_spinner_item,
-            allItems
-        ) {
-            override fun isEnabled(position: Int): Boolean {
-                // El primer elemento (hint) no debe ser seleccionable
-                return position != 0
-            }
-
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, allItems) {
+            override fun isEnabled(position: Int) = position != 0
             override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val view = super.getDropDownView(position, convertView, parent)
-                val textView = view as TextView
-
-                // Estilizar el hint en el dropdown
-                if (position == 0) {
-                    textView.setTextColor(Color.GRAY)
-                } else {
-                    textView.setTextColor(Color.BLACK)
-                }
+                val view = super.getDropDownView(position, convertView, parent) as TextView
+                view.setTextColor(if (position == 0) Color.GRAY else Color.BLACK)
                 return view
             }
-
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val view = super.getView(position, convertView, parent)
-                val textView = view as TextView
-
-                // Estilizar el texto seleccionado
-                if (position == 0) {
-                    // El hint debe verse como un placeholder
-                    textView.setTextColor(Color.GRAY)
-                } else {
-                    // Una selección real debe verse destacada
-                    textView.setTextColor(resources.getColor(R.color.dark_text, theme))
-                }
-
+                val view = super.getView(position, convertView, parent) as TextView
+                view.setTextColor(
+                    if (position == 0)
+                        Color.GRAY
+                    else
+                        resources.getColor(R.color.dark_text, theme)
+                )
                 return view
             }
         }
-
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinner.adapter = adapter
-
-        // Establecer el hint como selección inicial
         spinner.setSelection(0, false)
-
-        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                view?.let {
-                    val textView = it as TextView
-                    if (position > 0) {
-                        textView.setTextColor(resources.getColor(R.color.dark_text, theme))
-                    } else {
-                        textView.setTextColor(Color.GRAY)
-                    }
-                }
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {
-                // No es necesario hacer nada aquí
-            }
-        }
-    }
-
-    // Método para verificar si se seleccionó un elemento real (no el hint)
-    private fun isValidSelection(spinner: Spinner): Boolean {
-        return spinner.selectedItemPosition > 0
     }
 }
+
+// Modelo de datos para usuario
+data class User(
+    val uid: String = "",
+    val email: String = "",
+    val rol: String = "",
+    val sede: String = ""
+)

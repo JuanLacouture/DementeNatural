@@ -37,6 +37,8 @@ android {
 }
 
 dependencies {
+    implementation ("com.google.firebase:firebase-auth:23.2.0")
+    implementation ("com.google.firebase:firebase-database:21.0.0")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -47,4 +49,6 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    implementation(libs.firebase.database)
+    implementation(libs.firebase.auth)
 }
