@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Esta es una representación muy básica de un QR code -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M20,20h160v160h-160z" />
+
+    <path
+        android:fillColor="@color/cream"
+        android:pathData="M30,30h140v140h-140z" />
+
+    <!-- Patrón básico de QR -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M40,40h40v40h-40z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M120,40h40v40h-40z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M40,120h40v40h-40z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M90,50h20v20h-20z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M130,90h20v20h-20z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M90,130h60v10h-60z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M120,100h20v20h-20z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M50,90h30v10h-30z" />
+</vector>
