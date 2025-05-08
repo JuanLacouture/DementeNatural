@@ -48,7 +48,7 @@ class Registro : AppCompatActivity() {
         editPassword    = findViewById(R.id.editPassword)
         buttonRegistrar = findViewById(R.id.buttonRegistrar)
 
-        // Configurar spinners con hint y valores personalizados
+        // Configurar spinners
         setupHintSpinner(
             spinnerRol,
             "Selecciona rol",
@@ -60,50 +60,70 @@ class Registro : AppCompatActivity() {
             arrayOf("Sede1", "Sede2", "Sede3")
         )
 
-        // Al pulsar Registrar
+        // Click en Registrar
         buttonRegistrar.setOnClickListener {
             val email    = editEmail.text.toString().trim()
             val password = editPassword.text.toString().trim()
             val rolPos   = spinnerRol.selectedItemPosition
             val sedePos  = spinnerSede.selectedItemPosition
 
-            // Validaciones
-            if (email.isEmpty() || password.isEmpty()) {
-                Toast.makeText(this, "Email y contraseña son obligatorios", Toast.LENGTH_SHORT).show()
+            // — VALIDACIONES CORREO —
+            if (email.length < 5) {
+                Toast.makeText(this, "El correo debe tener al menos 5 caracteres", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                Toast.makeText(this, "Ingresa un correo válido", Toast.LENGTH_SHORT).show()
+            if (email.contains(" ")) {
+                Toast.makeText(this, "El correo no puede contener espacios", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            val parts = email.split("@")
+            if (parts.size != 2 || parts[1].indexOf('.') == -1 ||
+                !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+            ) {
+                Toast.makeText(this, "Ingresa un correo válido (usuario@dominio.ext)", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // — VALIDACIONES CONTRASEÑA —
             if (password.length < 6) {
                 Toast.makeText(this, "La contraseña debe tener al menos 6 caracteres", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            if (password.contains(" ")) {
+                Toast.makeText(this, "La contraseña no puede contener espacios", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (!password.any { it.isUpperCase() }) {
+                Toast.makeText(this, "La contraseña debe contener al menos una letra mayúscula", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (password.toSet().size != password.length) {
+                Toast.makeText(this, "La contraseña no puede tener caracteres repetidos", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // — VALIDACIÓN SPINNERS —
             if (rolPos == 0 || sedePos == 0) {
                 Toast.makeText(this, "Por favor selecciona rol y sede", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
+            // Todo OK: extraer valores y registrar
             val rol  = spinnerRol.selectedItem as String
             val sede = spinnerSede.selectedItem as String
-
             registerUser(email, password, rol, sede)
         }
     }
 
     private fun registerUser(email: String, password: String, rol: String, sede: String) {
-        // Crear usuario en Firebase Auth
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    // Usuario creado, ahora guardamos datos adicionales en Realtime DB
                     val uid = auth.currentUser?.uid ?: return@addOnCompleteListener
                     val user = User(uid, email, rol, sede)
                     mDBRef.child("Users").child(uid).setValue(user)
                         .addOnSuccessListener {
                             Toast.makeText(this, "Registro exitoso", Toast.LENGTH_SHORT).show()
-                            // Aquí podrías navegar a otra Activity, p.ej. Login o Main
                             finish()
                         }
                         .addOnFailureListener { e ->
@@ -116,10 +136,10 @@ class Registro : AppCompatActivity() {
     }
 
     private fun setupHintSpinner(spinner: Spinner, hintText: String, items: Array<String>) {
-        val allItems = mutableListOf<String>()
-        allItems.add(hintText)
-        allItems.addAll(items)
-
+        val allItems = mutableListOf<String>().apply {
+            add(hintText)
+            addAll(items)
+        }
         val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, allItems) {
             override fun isEnabled(position: Int) = position != 0
             override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
@@ -130,10 +150,8 @@ class Registro : AppCompatActivity() {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = super.getView(position, convertView, parent) as TextView
                 view.setTextColor(
-                    if (position == 0)
-                        Color.GRAY
-                    else
-                        resources.getColor(R.color.dark_text, theme)
+                    if (position == 0) Color.GRAY
+                    else resources.getColor(R.color.dark_text, theme)
                 )
                 return view
             }
@@ -144,7 +162,7 @@ class Registro : AppCompatActivity() {
     }
 }
 
-// Modelo de datos para usuario
+// Modelo de datos para Firebase
 data class User(
     val uid: String = "",
     val email: String = "",
