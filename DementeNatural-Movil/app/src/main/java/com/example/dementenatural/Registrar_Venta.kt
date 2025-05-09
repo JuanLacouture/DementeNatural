@@ -1,17 +1,15 @@
 package com.example.dementenatural
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.widget.addTextChangedListener
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
@@ -24,7 +22,8 @@ class Registrar_Venta : AppCompatActivity() {
     private lateinit var totalAmount: TextView
     private lateinit var confirmSaleButton: View
     private var total: Double = 0.0
-    private val selectedProducts = mutableListOf<Product>()
+    private val selectedProducts = mutableMapOf<String, Int>() // ID del producto -> Cantidad
+    private var userSede: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,174 +34,207 @@ class Registrar_Venta : AppCompatActivity() {
         totalAmount = findViewById(R.id.totalAmount)
         confirmSaleButton = findViewById(R.id.confirmSaleButton)
 
-        // RecyclerView setup
+        // Configurar RecyclerView inicialmente vacío
         productList.layoutManager = LinearLayoutManager(this)
+        productList.adapter = ProductAdapter(emptyList()) { _, _ -> }
 
-        // Listener for search input
-        searchInput.addTextChangedListener {
-            searchProducts(it.toString())
-        }
+        // Inicializar total en 0
+        totalAmount.text = "0 COP"
+
+        // Listener para búsqueda (corregido)
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                val query = s?.toString() ?: ""
+                if (query.isNotEmpty() && userSede != null) {
+                    searchProducts(query, userSede!!)
+                } else {
+                    (productList.adapter as ProductAdapter).updateProducts(emptyList())
+                }
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
 
         confirmSaleButton.setOnClickListener {
             confirmSale()
         }
 
-        // Load user data and filter products based on the user's sede
-        loadUserData()
+        loadUserSede()
     }
 
-    private fun loadUserData() {
-        val userEmail = FirebaseAuth.getInstance().currentUser?.email
-        val userRef = FirebaseDatabase.getInstance().getReference("Users")
-
-        val userQuery = userRef.orderByChild("email").equalTo(userEmail)
-        userQuery.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    val user = dataSnapshot.children.first().getValue(User::class.java)
-                    val userSede = user?.sede
-                    if (userSede != null) {
-                        loadProducts(userSede)
-                    }
+    private fun loadUserSede() {
+        val user = FirebaseAuth.getInstance().currentUser
+        FirebaseDatabase.getInstance().getReference("Users")
+            .orderByChild("email").equalTo(user?.email)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    userSede = snapshot.children.firstOrNull()?.getValue(User::class.java)?.sede
                 }
-            }
 
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@Registrar_Venta, "Error al cargar los datos del usuario", Toast.LENGTH_SHORT).show()
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    Toast.makeText(this@Registrar_Venta, "Error al cargar sede", Toast.LENGTH_SHORT).show()
+                }
+            })
     }
 
-    private fun loadProducts(sede: String) {
-        val productsRef = FirebaseDatabase.getInstance().getReference("Inventario")
-        val productQuery = productsRef.orderByChild("sede").equalTo(sede)
-
-        productQuery.addListenerForSingleValueEvent(object : ValueEventListener {
+    private fun searchProducts(query: String, sede: String) {
+        val ref = FirebaseDatabase.getInstance().getReference("Inventario")
+        ref.orderByChild("sede").equalTo(sede).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val productList = mutableListOf<Product>()
-                for (productSnapshot in snapshot.children) {
-                    val product = productSnapshot.getValue<Product>()
-                    if (product?.quantity ?: 0 > 0) { // Solo productos con stock disponible
-                        productList.add(product!!)
+                val filteredProducts = mutableListOf<Product>()
+                for (productSnap in snapshot.children) {
+                    val product = productSnap.getValue(Product::class.java)
+                    if (product != null && product.name.startsWith(query, true)) {
+                        filteredProducts.add(product.copy(id = productSnap.key ?: ""))
                     }
                 }
-                // Actualiza el RecyclerView con los productos encontrados
-                updateRecyclerView(productList)
+                (productList.adapter as ProductAdapter).updateProducts(filteredProducts)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@Registrar_Venta, "Error al cargar los productos", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@Registrar_Venta, "Error en búsqueda", Toast.LENGTH_SHORT).show()
             }
         })
     }
 
-    private fun searchProducts(query: String) {
-        val filteredProducts = mutableListOf<Product>()
-        val productsRef = FirebaseDatabase.getInstance().getReference("Inventario")
-        val productQuery = productsRef.orderByChild("name").startAt(query).endAt(query + "\uf8ff")
-
-        productQuery.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                for (productSnapshot in snapshot.children) {
-                    val product = productSnapshot.getValue<Product>()
-                    if (product?.quantity ?: 0 > 0) { // Solo productos con stock disponible
-                        filteredProducts.add(product!!)
-                    }
-                }
-                // Actualiza el RecyclerView con los productos filtrados
-                updateRecyclerView(filteredProducts)
+    private fun calculateTotal() {
+        total = 0.0
+        selectedProducts.forEach { (id, qty) ->
+            (productList.adapter as ProductAdapter).currentProducts.firstOrNull { it.id == id }?.let {
+                total += it.price * qty
             }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@Registrar_Venta, "Error al cargar los productos filtrados", Toast.LENGTH_SHORT).show()
-            }
-        })
-    }
-
-    private fun updateRecyclerView(products: List<Product>) {
-        val adapter = ProductAdapter(products) { product ->
-            addProductToSale(product)
         }
-        productList.adapter = adapter
-    }
-
-    private fun addProductToSale(product: Product) {
-        // Si el producto tiene más de 0 en stock, se puede agregar
-        if (product.quantity > 0) {
-            // Si el producto solo tiene 1 en stock, no se podrá agregar más veces
-            if (product.quantity == 1 && selectedProducts.count { it.name == product.name } >= 1) {
-                Toast.makeText(this, "No puedes agregar más de este producto", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            selectedProducts.add(product)
-            total += product.price
-            totalAmount.text = "$total COP"
-
-            // Reduce el stock temporalmente (no en Firebase aún)
-            val productRef = FirebaseDatabase.getInstance().getReference("Inventario").child(product.name)
-            productRef.child("quantity").setValue(product.quantity - 1)
-        }
+        totalAmount.text = "%,.2f COP".format(total)
     }
 
     private fun confirmSale() {
+        if (selectedProducts.isEmpty()) {
+            Toast.makeText(this, "Agrega productos primero", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val userEmail = FirebaseAuth.getInstance().currentUser?.email
-        val saleId = FirebaseDatabase.getInstance().getReference("Ventas").push().key
+        val ventasRef = FirebaseDatabase.getInstance().getReference("Ventas")
+        val saleId = ventasRef.push().key
+        val inventarioRef = FirebaseDatabase.getInstance().getReference("Inventario")
 
-        val sale = Sale(
-            saleId = saleId,
-            email = userEmail,
-            products = selectedProducts,
-            total = total
-        )
+        inventarioRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val updates = hashMapOf<String, Any>()
+                val errores = mutableListOf<String>()
 
-        val saleRef = FirebaseDatabase.getInstance().getReference("Ventas")
-        saleRef.child(saleId!!).setValue(sale).addOnCompleteListener {
-            if (it.isSuccessful) {
-                // Actualizar el inventario después de confirmar la venta
-                updateInventory()
-                Toast.makeText(this, "Venta registrada", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Error al registrar la venta", Toast.LENGTH_SHORT).show()
+                // Verificar stock
+                selectedProducts.forEach { (id, qty) ->
+                    val product = snapshot.child(id).getValue(Product::class.java)
+                    when {
+                        product == null -> errores.add("Producto no encontrado: $id")
+                        product.quantity < qty -> errores.add("${product.name} (Stock: ${product.quantity})")
+                        else -> updates["$id/quantity"] = product.quantity - qty
+                    }
+                }
+
+                if (errores.isNotEmpty()) {
+                    Toast.makeText(
+                        this@Registrar_Venta,
+                        "Stock insuficiente:\n${errores.joinToString("\n")}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return
+                }
+
+                // Crear y guardar venta
+                val sale = Sale(
+                    saleId = saleId,
+                    email = userEmail,
+                    products = selectedProducts.toMap(),
+                    total = total
+                )
+
+                ventasRef.child(saleId!!).setValue(sale)
+                    .addOnSuccessListener {
+                        inventarioRef.updateChildren(updates).addOnSuccessListener {
+                            selectedProducts.clear()
+                            calculateTotal()
+                            Toast.makeText(
+                                this@Registrar_Venta,
+                                "Venta registrada exitosamente",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(
+                            this@Registrar_Venta,
+                            "Error al guardar la venta",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
             }
-        }
+
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(this@Registrar_Venta, "Error de conexión", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
-    private fun updateInventory() {
-        for (product in selectedProducts) {
-            val productRef = FirebaseDatabase.getInstance().getReference("Inventario").child(product.name)
-            val newQuantity = product.quantity - selectedProducts.count { it.name == product.name }
-            productRef.child("quantity").setValue(newQuantity)
-        }
-    }
+    // Adapter mejorado
+    inner class ProductAdapter(
+        private var products: List<Product>,
+        private val onQuantityChange: (String, Int) -> Unit
+    ) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
 
-    // Adapter para RecyclerView
-    class ProductAdapter(
-        private val productList: List<Product>,
-        private val onProductClick: (Product) -> Unit
-    ) : RecyclerView.Adapter<ProductAdapter.ProductViewHolder>() {
+        var currentProducts = emptyList<Product>()
+            private set
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_sale_product, parent, false)
-            return ProductViewHolder(view)
+        fun updateProducts(newProducts: List<Product>) {
+            currentProducts = newProducts
+            notifyDataSetChanged()
         }
 
-        override fun onBindViewHolder(holder: ProductViewHolder, position: Int) {
-            val product = productList[position]
-            holder.bind(product)
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_sale_product, parent, false)
+            return ViewHolder(view)
         }
 
-        override fun getItemCount(): Int = productList.size
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.bind(currentProducts[position])
+        }
 
-        inner class ProductViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            private val productName: TextView = itemView.findViewById(R.id.productName)
-            private val productPrice: TextView = itemView.findViewById(R.id.productPrice)
+        override fun getItemCount() = currentProducts.size
+
+        inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            private val name: TextView = itemView.findViewById(R.id.productName)
+            private val price: TextView = itemView.findViewById(R.id.productPrice)
+            private val decrement: TextView = itemView.findViewById(R.id.decrementButton)
+            private val increment: TextView = itemView.findViewById(R.id.incrementButton)
+            private val quantity: TextView = itemView.findViewById(R.id.quantityText)
 
             fun bind(product: Product) {
-                productName.text = product.name
-                productPrice.text = "${product.price} COP"
-                itemView.setOnClickListener {
-                    onProductClick(product)
+                name.text = product.name
+                price.text = "%,.2f COP".format(product.price)
+                quantity.text = (selectedProducts[product.id] ?: 0).toString()
+
+                decrement.setOnClickListener {
+                    selectedProducts[product.id]?.let { currentQty ->
+                        if (currentQty > 0) {
+                            val newQty = currentQty - 1
+                            selectedProducts[product.id] = newQty
+                            quantity.text = newQty.toString()
+                            onQuantityChange(product.id, newQty)
+                            calculateTotal()
+                        }
+                    }
+                }
+
+                increment.setOnClickListener {
+                    val currentQty = selectedProducts[product.id] ?: 0
+                    val newQty = currentQty + 1
+                    selectedProducts[product.id] = newQty
+                    quantity.text = newQty.toString()
+                    onQuantityChange(product.id, newQty)
+                    calculateTotal()
                 }
             }
         }
@@ -211,7 +243,9 @@ class Registrar_Venta : AppCompatActivity() {
     data class Sale(
         val saleId: String? = null,
         val email: String? = null,
-        val products: List<Product> = listOf(),
+        val products: Map<String, Int> = mapOf(),
         val total: Double = 0.0
     )
 }
+
+
