@@ -3,19 +3,18 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp">
+    android:paddingVertical="16dp"
+    android:background="@android:color/white">
 
     <TextView
         android:id="@+id/productName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Collar étnico"
-        android:textColor="@color/dark_brown"
-        android:textSize="15sp"
+        android:textColor="@color/dark_text"
+        android:textSize="18sp"
         android:textStyle="bold"
+        android:fontFamily="sans-serif"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -25,8 +24,51 @@
         android:layout_height="wrap_content"
         android:text="25.000 COP"
         android:textColor="@color/dark_brown"
-        android:textSize="14sp"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif"
+        android:layout_marginTop="4dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/productName" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:orientation="horizontal"
+        android:layout_marginStart="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <TextView
+            android:id="@+id/decrementButton"
+            android:layout_width="36dp"
+            android:layout_height="match_parent"
+            android:text="-"
+            android:textSize="20sp"
+            android:textColor="@color/dark_text"
+            android:background="@drawable/decrement_button_background"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/quantityText"
+            android:layout_width="36dp"
+            android:layout_height="match_parent"
+            android:text="1"
+            android:textSize="18sp"
+            android:textColor="@color/dark_text"
+            android:background="@color/cream"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/incrementButton"
+            android:layout_width="36dp"
+            android:layout_height="match_parent"
+            android:text="+"
+            android:textSize="20sp"
+            android:textColor="@color/dark_text"
+            android:background="@drawable/increment_button_background"
+            android:gravity="center" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
