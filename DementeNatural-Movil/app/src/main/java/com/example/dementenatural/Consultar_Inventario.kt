@@ -1,7 +1,9 @@
 package com.example.dementenatural
 
 import android.os.Bundle
-import android.util.Log
+import android.text.Editable
+import android.text.TextWatcher
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -14,19 +16,21 @@ import com.google.firebase.database.*
 
 class Consultar_Inventario : AppCompatActivity() {
 
-    companion object {
-        private const val TAG = "DEBUG_ConsultarInv"
-    }
-
     private lateinit var auth: FirebaseAuth
     private lateinit var mDBRef: DatabaseReference
+
     private lateinit var recycler: RecyclerView
+    private lateinit var searchInput: EditText
+
+    // Lista que ve el adapter
     private val productList = mutableListOf<Product>()
+    // Copia completa para filtrar
+    private val allProducts   = mutableListOf<Product>()
+
     private lateinit var inventarioAdapter: InventarioAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d(TAG, "onCreate 🔥")
         enableEdgeToEdge()
         setContentView(R.layout.activity_consultar_inventario)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -35,50 +39,51 @@ class Consultar_Inventario : AppCompatActivity() {
             insets
         }
 
-        // 1) Inicializar Firebase
+        // --- Instancias Firebase ---
         auth   = FirebaseAuth.getInstance()
         mDBRef = FirebaseDatabase.getInstance().reference
 
-        // 2) RecyclerView
+        // --- RecyclerView & Adapter ---
         recycler = findViewById(R.id.productList)
         recycler.layoutManager = LinearLayoutManager(this)
         inventarioAdapter = InventarioAdapter(productList)
         recycler.adapter = inventarioAdapter
 
-        // 3) Usuario autenticado?
+        // --- Search Input ---
+        searchInput = findViewById(R.id.searchInput)
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) { }
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { }
+            override fun afterTextChanged(s: Editable?) {
+                val query = s?.toString() ?: ""
+                filterProducts(query)
+            }
+        })
+
+        // --- Arranque: obtener sede y cargar inventario ---
         val uid = auth.currentUser?.uid
-        Log.d(TAG, "UID obtenido: $uid")
         if (uid == null) {
             Toast.makeText(this, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
             return
         }
-
-        // 4) Obtener sede
         obtenerSedeUsuario(uid) { sede ->
-            Log.d(TAG, "Callback obtenerSedeUsuario → '$sede'")
-            Toast.makeText(this, "Debug: sede = $sede", Toast.LENGTH_SHORT).show()
             if (sede.isEmpty()) {
                 Toast.makeText(this, "No se encontró la sede de tu usuario", Toast.LENGTH_SHORT).show()
             } else {
-                // 5) Cargar productos filtrados
                 cargarProductosPorSede(sede)
             }
         }
     }
 
     private fun obtenerSedeUsuario(uid: String, callback: (String) -> Unit) {
-        Log.d(TAG, "Leyendo /Users/$uid/sede …")
         mDBRef.child("Users")
             .child(uid)
             .child("sede")
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snap: DataSnapshot) {
-                    val sede = snap.getValue(String::class.java) ?: ""
-                    Log.d(TAG, "onDataChange(sede): '$sede'")
-                    callback(sede)
+                    callback(snap.getValue(String::class.java) ?: "")
                 }
                 override fun onCancelled(err: DatabaseError) {
-                    Log.e(TAG, "onCancelled(sede): ${err.message}")
                     Toast.makeText(
                         this@Consultar_Inventario,
                         "Error al obtener sede: ${err.message}",
@@ -90,29 +95,21 @@ class Consultar_Inventario : AppCompatActivity() {
     }
 
     private fun cargarProductosPorSede(sede: String) {
-        Log.d(TAG, "Query Inventario where sede == $sede …")
         productList.clear()
+        allProducts.clear()
         mDBRef.child("Inventario")
             .orderByChild("sede")
             .equalTo(sede)
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    Log.d(TAG, "Snapshot.childrenCount = ${snapshot.childrenCount}")
-                    Toast.makeText(
-                        this@Consultar_Inventario,
-                        "Debug: encontrados ${snapshot.childrenCount} items",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
                     for (child in snapshot.children) {
-                        // Ver qué key e hijo trae
-                        Log.d(TAG, "  → hijo key=${child.key}, valor=${child.value}")
                         child.getValue(Product::class.java)?.let {
                             productList.add(it)
-                        } ?: run {
-                            Log.w(TAG, "    ⚠️ ¡No pudo mapearse a Product!")
                         }
                     }
+                    // Guardamos la copia completa
+                    allProducts.addAll(productList)
+
                     inventarioAdapter.notifyDataSetChanged()
 
                     if (productList.isEmpty()) {
@@ -124,7 +121,6 @@ class Consultar_Inventario : AppCompatActivity() {
                     }
                 }
                 override fun onCancelled(error: DatabaseError) {
-                    Log.e(TAG, "onCancelled(consulta): ${error.message}")
                     Toast.makeText(
                         this@Consultar_Inventario,
                         "Error al cargar productos: ${error.message}",
@@ -132,5 +128,19 @@ class Consultar_Inventario : AppCompatActivity() {
                     ).show()
                 }
             })
+    }
+
+    /** Filtra por nombre y refresca el adapter */
+    private fun filterProducts(query: String) {
+        productList.clear()
+        if (query.isEmpty()) {
+            productList.addAll(allProducts)
+        } else {
+            val filtered = allProducts.filter {
+                it.name.contains(query, ignoreCase = true)
+            }
+            productList.addAll(filtered)
+        }
+        inventarioAdapter.notifyDataSetChanged()
     }
 }
