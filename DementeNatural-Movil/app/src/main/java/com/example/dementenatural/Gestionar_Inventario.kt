@@ -2,8 +2,6 @@ package com.example.dementenatural
 
 import android.content.Intent
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -50,7 +48,7 @@ class Gestionar_Inventario : AppCompatActivity() {
 
         // --- Search Input ---
         searchInput = findViewById(R.id.searchInput)
-        searchInput.addTextChangedListener(object : TextWatcher {
+        searchInput.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
@@ -150,13 +148,27 @@ class Gestionar_Inventario : AppCompatActivity() {
 
     // Función para editar un producto
     private fun onEditProduct(product: Product) {
-        Toast.makeText(this, "Editar ${product.name}", Toast.LENGTH_SHORT).show()
-        // Agregar lógica de edición aquí
+        val intent = Intent(this, Editar_Producto::class.java)
+        // Enviar el producto seleccionado al editar
+        intent.putExtra("product_id", product.id)
+        intent.putExtra("product_name", product.name)
+        intent.putExtra("product_description", product.description)
+        intent.putExtra("product_price", product.price)
+        intent.putExtra("product_quantity", product.quantity)
+        intent.putExtra("product_sede", product.sede)
+        startActivity(intent)
     }
 
     // Función para eliminar un producto
     private fun onDeleteProduct(product: Product) {
-        Toast.makeText(this, "Eliminar ${product.name}", Toast.LENGTH_SHORT).show()
-        // Agregar lógica de eliminación aquí
+        mDBRef.child("Inventario").child(product.id).removeValue()
+            .addOnSuccessListener {
+                Toast.makeText(this, "Producto eliminado correctamente", Toast.LENGTH_SHORT).show()
+                // Actualizar la lista después de eliminar
+                cargarProductosPorSede(product.sede)
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Error al eliminar el producto: ${e.message}", Toast.LENGTH_LONG).show()
+            }
     }
 }
