@@ -1,5 +1,6 @@
 package com.example.dementenatural
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
@@ -83,7 +84,11 @@ class Editar_Producto : AppCompatActivity() {
             mDBRef.child("Inventario").child(productId).setValue(updatedProduct)
                 .addOnSuccessListener {
                     Toast.makeText(this, "Producto actualizado", Toast.LENGTH_SHORT).show()
-                    finish() // Regresar a la pantalla anterior
+
+                    // Regresar al Menu_Admin después de la actualización
+                    val intent = Intent(this, Menu_Admin::class.java)
+                    startActivity(intent)
+                    finish() // Finalizamos la actividad actual para no quedarnos en Editar_Producto
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(this, "Error al actualizar el producto: ${e.message}", Toast.LENGTH_LONG).show()
