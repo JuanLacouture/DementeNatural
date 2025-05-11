@@ -50,11 +50,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/monthlySalesTitle">
 
-        <com.github.mikephil.charting.charts.BarChart
-            android:id="@+id/monthlySalesChart"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_margin="8dp" />
+
 
     </androidx.cardview.widget.CardView>
 
@@ -91,11 +87,7 @@
             android:layout_height="match_parent"
             android:orientation="vertical">
 
-            <com.github.mikephil.charting.charts.BarChart
-                android:id="@+id/objectsSoldChart"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_margin="8dp" />
+
         </LinearLayout>
 
     </androidx.cardview.widget.CardView>

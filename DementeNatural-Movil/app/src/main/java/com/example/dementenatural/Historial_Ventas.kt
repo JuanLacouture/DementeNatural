@@ -8,6 +8,7 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,9 +20,10 @@ class Historial_Ventas : AppCompatActivity() {
     private lateinit var mDBRef: DatabaseReference
     private lateinit var recycler: RecyclerView
     private lateinit var searchInput: EditText
+    private lateinit var statsButton: CardView
 
     private val ventasList = mutableListOf<Sale>()
-    private val allVentas = mutableListOf<Sale>()
+    private val allVentas    = mutableListOf<Sale>()
     private lateinit var ventasAdapter: VentasAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,6 +38,7 @@ class Historial_Ventas : AppCompatActivity() {
 
         mDBRef = FirebaseDatabase.getInstance().reference
 
+        // RecyclerView & Adapter
         recycler = findViewById(R.id.salesList)
         recycler.layoutManager = LinearLayoutManager(this)
         ventasAdapter = VentasAdapter(ventasList) { sale ->
@@ -49,6 +52,7 @@ class Historial_Ventas : AppCompatActivity() {
         }
         recycler.adapter = ventasAdapter
 
+        // Search Input
         searchInput = findViewById(R.id.searchInput)
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
@@ -58,6 +62,13 @@ class Historial_Ventas : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
 
+        // Statistics Button
+        statsButton = findViewById(R.id.statisticsButton)
+        statsButton.setOnClickListener {
+            startActivity(Intent(this, Estadisticas_Ventas::class.java))
+        }
+
+        // Load data
         cargarVentas()
     }
 
