@@ -1,5 +1,6 @@
 package com.example.dementenatural
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -20,7 +21,7 @@ class Historial_Ventas : AppCompatActivity() {
     private lateinit var searchInput: EditText
 
     private val ventasList = mutableListOf<Sale>()
-    private val allVentas  = mutableListOf<Sale>()
+    private val allVentas = mutableListOf<Sale>()
     private lateinit var ventasAdapter: VentasAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,13 +36,19 @@ class Historial_Ventas : AppCompatActivity() {
 
         mDBRef = FirebaseDatabase.getInstance().reference
 
-        // RecyclerView & Adapter
         recycler = findViewById(R.id.salesList)
         recycler.layoutManager = LinearLayoutManager(this)
-        ventasAdapter = VentasAdapter(ventasList)
+        ventasAdapter = VentasAdapter(ventasList) { sale ->
+            val intent = Intent(this, Venta_Especifica::class.java).apply {
+                putExtra("saleId", sale.saleId)
+                putExtra("email", sale.email)
+                putExtra("total", sale.total)
+                putExtra("products", HashMap(sale.products))  // Map<String,Int> es Serializable
+            }
+            startActivity(intent)
+        }
         recycler.adapter = ventasAdapter
 
-        // Search
         searchInput = findViewById(R.id.searchInput)
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
@@ -51,7 +58,6 @@ class Historial_Ventas : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
 
-        // Carga inicial
         cargarVentas()
     }
 
@@ -61,8 +67,7 @@ class Historial_Ventas : AppCompatActivity() {
                 ventasList.clear()
                 allVentas.clear()
                 for (child in snapshot.children) {
-                    val sale = child.getValue(Sale::class.java)
-                    sale?.let {
+                    child.getValue(Sale::class.java)?.let {
                         ventasList.add(it)
                         allVentas.add(it)
                     }

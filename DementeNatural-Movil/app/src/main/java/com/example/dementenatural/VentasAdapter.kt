@@ -6,8 +6,10 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class VentasAdapter(private val ventasList: List<Sale>) :
-    RecyclerView.Adapter<VentasAdapter.VentaViewHolder>() {
+class VentasAdapter(
+    private val ventasList: List<Sale>,
+    private val onSaleClick: (Sale) -> Unit
+) : RecyclerView.Adapter<VentasAdapter.VentaViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VentaViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -19,6 +21,9 @@ class VentasAdapter(private val ventasList: List<Sale>) :
         val sale = ventasList[position]
         holder.saleId.text = "Venta #${sale.saleId}"
         holder.saleAmount.text = "%,.2f COP".format(sale.total)
+        holder.itemView.setOnClickListener {
+            onSaleClick(sale)
+        }
     }
 
     override fun getItemCount(): Int = ventasList.size
