@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
@@ -22,7 +23,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Sección Ventas Mensuales -->
+    <!-- Ventas Mensuales -->
     <TextView
         android:id="@+id/monthlySalesTitle"
         android:layout_width="wrap_content"
@@ -36,7 +37,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/titleStats" />
 
-    <!-- Gráfico de Ventas Mensuales -->
     <androidx.cardview.widget.CardView
         android:id="@+id/monthlySalesChartContainer"
         android:layout_width="0dp"
@@ -46,15 +46,17 @@
         android:layout_marginTop="8dp"
         app:cardBackgroundColor="@color/cream"
         app:cardElevation="0dp"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/monthlySalesTitle">
 
-
-
+        <com.github.mikephil.charting.charts.BarChart
+            android:id="@+id/monthlySalesChart"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
     </androidx.cardview.widget.CardView>
 
-    <!-- Sección Objetos Vendidos -->
+    <!-- Objetos Vendidos -->
     <TextView
         android:id="@+id/objectsSoldTitle"
         android:layout_width="wrap_content"
@@ -68,7 +70,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/monthlySalesChartContainer" />
 
-    <!-- Gráfico de Objetos Vendidos -->
     <androidx.cardview.widget.CardView
         android:id="@+id/objectsSoldChartContainer"
         android:layout_width="0dp"
@@ -78,18 +79,14 @@
         android:layout_marginTop="8dp"
         app:cardBackgroundColor="@color/cream"
         app:cardElevation="0dp"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/objectsSoldTitle">
 
-        <LinearLayout
+        <com.github.mikephil.charting.charts.PieChart
+            android:id="@+id/objectsSoldChart"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
-
-
-        </LinearLayout>
-
+            android:layout_height="match_parent"/>
     </androidx.cardview.widget.CardView>
 
     <!-- Botón Volver -->
@@ -103,9 +100,9 @@
         app:cardBackgroundColor="@color/gold"
         app:cardCornerRadius="28dp"
         app:cardElevation="2dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <TextView
             android:layout_width="match_parent"
@@ -117,14 +114,13 @@
             android:textStyle="bold" />
     </androidx.cardview.widget.CardView>
 
-    <!-- Bottom Navigation Indicator -->
+    <!-- Indicador inferior -->
     <View
         android:layout_width="50dp"
         android:layout_height="4dp"
         android:layout_marginBottom="8dp"
         android:background="@color/dark_brown"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
+        app:layout_constraintBottom_toBottomOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout>
