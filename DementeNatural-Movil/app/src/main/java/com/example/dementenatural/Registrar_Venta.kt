@@ -3,13 +3,11 @@ package com.example.dementenatural
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
@@ -19,11 +17,17 @@ class Registrar_Venta : AppCompatActivity() {
 
     private lateinit var searchInput: EditText
     private lateinit var productList: RecyclerView
+    private lateinit var summaryList: RecyclerView
     private lateinit var totalAmount: TextView
-    private lateinit var confirmSaleButton: View
+    private lateinit var confirmSaleButton: CardView  // Cambiado a CardView
+
     private var total: Double = 0.0
-    private val selectedProducts = mutableMapOf<String, Int>() // ID del producto -> Cantidad
+    private val selectedProducts = mutableMapOf<String, Int>() // ID producto -> Cantidad
     private var userSede: String? = null
+
+    private lateinit var productAdapter: ProductAdapter
+    private lateinit var summaryAdapter: SummaryAdapter
+    private val summaryItems = mutableListOf<SummaryItem>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,24 +35,30 @@ class Registrar_Venta : AppCompatActivity() {
 
         searchInput = findViewById(R.id.searchInput)
         productList = findViewById(R.id.productList)
+        summaryList = findViewById(R.id.summaryList)
         totalAmount = findViewById(R.id.totalAmount)
         confirmSaleButton = findViewById(R.id.confirmSaleButton)
 
-        // Configurar RecyclerView inicialmente vacío
+        productAdapter = ProductAdapter(emptyList(), selectedProducts) { prodId, newQty ->
+            updateSummary(prodId, newQty)
+            calculateTotal()
+        }
         productList.layoutManager = LinearLayoutManager(this)
-        productList.adapter = ProductAdapter(emptyList()) { _, _ -> }
+        productList.adapter = productAdapter
 
-        // Inicializar total en 0
+        summaryAdapter = SummaryAdapter(summaryItems)
+        summaryList.layoutManager = LinearLayoutManager(this)
+        summaryList.adapter = summaryAdapter
+
         totalAmount.text = "0 COP"
 
-        // Listener para búsqueda (corregido)
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 val query = s?.toString() ?: ""
                 if (query.isNotEmpty() && userSede != null) {
                     searchProducts(query, userSede!!)
                 } else {
-                    (productList.adapter as ProductAdapter).updateProducts(emptyList())
+                    productAdapter.updateProducts(emptyList())
                 }
             }
 
@@ -89,7 +99,7 @@ class Registrar_Venta : AppCompatActivity() {
                         filteredProducts.add(product.copy(id = productSnap.key ?: ""))
                     }
                 }
-                (productList.adapter as ProductAdapter).updateProducts(filteredProducts)
+                productAdapter.updateProducts(filteredProducts)
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -98,12 +108,33 @@ class Registrar_Venta : AppCompatActivity() {
         })
     }
 
+    private fun updateSummary(prodId: String, qty: Int) {
+        val index = summaryItems.indexOfFirst { it.id == prodId }
+        val prod = productAdapter.currentProducts.firstOrNull { it.id == prodId }
+        if (qty == 0) {
+            if (index >= 0) {
+                summaryItems.removeAt(index)
+                summaryAdapter.notifyItemRemoved(index)
+            }
+            selectedProducts.remove(prodId)
+        } else {
+            if (prod == null) return
+            val item = SummaryItem(prodId, prod.name, qty, prod.price * qty)
+            if (index >= 0) {
+                summaryItems[index] = item
+                summaryAdapter.notifyItemChanged(index)
+            } else {
+                summaryItems.add(item)
+                summaryAdapter.notifyItemInserted(summaryItems.size - 1)
+            }
+            selectedProducts[prodId] = qty
+        }
+    }
+
     private fun calculateTotal() {
         total = 0.0
-        selectedProducts.forEach { (id, qty) ->
-            (productList.adapter as ProductAdapter).currentProducts.firstOrNull { it.id == id }?.let {
-                total += it.price * qty
-            }
+        summaryItems.forEach {
+            total += it.subtotal
         }
         totalAmount.text = "%,.2f COP".format(total)
     }
@@ -115,8 +146,18 @@ class Registrar_Venta : AppCompatActivity() {
         }
 
         val userEmail = FirebaseAuth.getInstance().currentUser?.email
+        if (userEmail == null) {
+            Toast.makeText(this, "Error: usuario no autenticado", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val ventasRef = FirebaseDatabase.getInstance().getReference("Ventas")
         val saleId = ventasRef.push().key
+        if (saleId == null) {
+            Toast.makeText(this, "Error al generar ID de venta", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val inventarioRef = FirebaseDatabase.getInstance().getReference("Inventario")
 
         inventarioRef.addListenerForSingleValueEvent(object : ValueEventListener {
@@ -124,7 +165,6 @@ class Registrar_Venta : AppCompatActivity() {
                 val updates = hashMapOf<String, Any>()
                 val errores = mutableListOf<String>()
 
-                // Verificar stock
                 selectedProducts.forEach { (id, qty) ->
                     val product = snapshot.child(id).getValue(Product::class.java)
                     when {
@@ -143,7 +183,6 @@ class Registrar_Venta : AppCompatActivity() {
                     return
                 }
 
-                // Crear y guardar venta
                 val sale = Sale(
                     saleId = saleId,
                     email = userEmail,
@@ -151,10 +190,12 @@ class Registrar_Venta : AppCompatActivity() {
                     total = total
                 )
 
-                ventasRef.child(saleId!!).setValue(sale)
+                ventasRef.child(saleId).setValue(sale)
                     .addOnSuccessListener {
                         inventarioRef.updateChildren(updates).addOnSuccessListener {
                             selectedProducts.clear()
+                            summaryItems.clear()
+                            summaryAdapter.notifyDataSetChanged()
                             calculateTotal()
                             Toast.makeText(
                                 this@Registrar_Venta,
@@ -177,75 +218,4 @@ class Registrar_Venta : AppCompatActivity() {
             }
         })
     }
-
-    // Adapter mejorado
-    inner class ProductAdapter(
-        private var products: List<Product>,
-        private val onQuantityChange: (String, Int) -> Unit
-    ) : RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
-
-        var currentProducts = emptyList<Product>()
-            private set
-
-        fun updateProducts(newProducts: List<Product>) {
-            currentProducts = newProducts
-            notifyDataSetChanged()
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_sale_product, parent, false)
-            return ViewHolder(view)
-        }
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            holder.bind(currentProducts[position])
-        }
-
-        override fun getItemCount() = currentProducts.size
-
-        inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            private val name: TextView = itemView.findViewById(R.id.productName)
-            private val price: TextView = itemView.findViewById(R.id.productPrice)
-            private val decrement: TextView = itemView.findViewById(R.id.decrementButton)
-            private val increment: TextView = itemView.findViewById(R.id.incrementButton)
-            private val quantity: TextView = itemView.findViewById(R.id.quantityText)
-
-            fun bind(product: Product) {
-                name.text = product.name
-                price.text = "%,.2f COP".format(product.price)
-                quantity.text = (selectedProducts[product.id] ?: 0).toString()
-
-                decrement.setOnClickListener {
-                    selectedProducts[product.id]?.let { currentQty ->
-                        if (currentQty > 0) {
-                            val newQty = currentQty - 1
-                            selectedProducts[product.id] = newQty
-                            quantity.text = newQty.toString()
-                            onQuantityChange(product.id, newQty)
-                            calculateTotal()
-                        }
-                    }
-                }
-
-                increment.setOnClickListener {
-                    val currentQty = selectedProducts[product.id] ?: 0
-                    val newQty = currentQty + 1
-                    selectedProducts[product.id] = newQty
-                    quantity.text = newQty.toString()
-                    onQuantityChange(product.id, newQty)
-                    calculateTotal()
-                }
-            }
-        }
-    }
-
-    data class Sale(
-        val saleId: String? = null,
-        val email: String? = null,
-        val products: Map<String, Int> = mapOf(),
-        val total: Double = 0.0
-    )
 }
-
-

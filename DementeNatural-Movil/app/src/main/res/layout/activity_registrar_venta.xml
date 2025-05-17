@@ -68,21 +68,39 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_arrow_down"
-                android:tint="@color/dark_brown" />
+                app:tint="@color/dark_brown" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
     <!-- Product List -->
+
+    <!-- Summary List (moved here, just below productList) -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/productList"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_width="330dp"
+        android:layout_height="371dp"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/searchBarContainer"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/summaryList"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/divider"
+        app:layout_constraintHorizontal_bias="0.492"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/searchBarContainer"
+        app:layout_constraintVertical_bias="0.0"
         tools:listitem="@layout/item_sale_product" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/summaryList"
+        android:layout_width="0dp"
+        android:layout_height="120dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/productList"
+        app:layout_constraintBottom_toTopOf="@id/divider"
+        tools:listitem="@layout/item_summary_product" />
 
     <!-- Divider line -->
     <View
