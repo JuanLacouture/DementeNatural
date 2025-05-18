@@ -1,8 +1,12 @@
 package com.example.dementenatural
 
+import android.graphics.Rect
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.MotionEvent
+import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -19,7 +23,7 @@ class Registrar_Venta : AppCompatActivity() {
     private lateinit var productList: RecyclerView
     private lateinit var summaryList: RecyclerView
     private lateinit var totalAmount: TextView
-    private lateinit var confirmSaleButton: CardView  // Cambiado a CardView
+    private lateinit var confirmSaleButton: CardView
 
     private var total: Double = 0.0
     private val selectedProducts = mutableMapOf<String, Int>() // ID producto -> Cantidad
@@ -28,6 +32,8 @@ class Registrar_Venta : AppCompatActivity() {
     private lateinit var productAdapter: ProductAdapter
     private lateinit var summaryAdapter: SummaryAdapter
     private val summaryItems = mutableListOf<SummaryItem>()
+
+    private var userStartedTyping = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,14 +58,21 @@ class Registrar_Venta : AppCompatActivity() {
 
         totalAmount.text = "0 COP"
 
+        searchInput.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus && userSede != null && !userStartedTyping) {
+                userStartedTyping = true
+                searchProducts("", userSede!!)
+            } else if (!hasFocus && searchInput.text.isEmpty()) {
+                productAdapter.updateProducts(emptyList())
+                userStartedTyping = false
+            }
+        }
+
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 val query = s?.toString() ?: ""
-                if (query.isNotEmpty() && userSede != null) {
-                    searchProducts(query, userSede!!)
-                } else {
-                    productAdapter.updateProducts(emptyList())
-                }
+                if (userSede == null) return
+                searchProducts(query, userSede!!)
             }
 
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -71,6 +84,35 @@ class Registrar_Venta : AppCompatActivity() {
         }
 
         loadUserSede()
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            val v = currentFocus
+            if (v is EditText) {
+                // Rect para EditText
+                val outRectEditText = Rect()
+                v.getGlobalVisibleRect(outRectEditText)
+                // Rect para RecyclerView productList
+                val outRectRecyclerView = Rect()
+                productList.getGlobalVisibleRect(outRectRecyclerView)
+
+                // Si el toque no está ni en EditText ni en RecyclerView -> cerramos búsqueda
+                if (!outRectEditText.contains(ev.rawX.toInt(), ev.rawY.toInt()) &&
+                    !outRectRecyclerView.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
+                    v.clearFocus()
+                    hideKeyboard(v)
+                    productAdapter.updateProducts(emptyList())
+                    userStartedTyping = false
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun hideKeyboard(view: View) {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
     private fun loadUserSede() {
@@ -95,8 +137,10 @@ class Registrar_Venta : AppCompatActivity() {
                 val filteredProducts = mutableListOf<Product>()
                 for (productSnap in snapshot.children) {
                     val product = productSnap.getValue(Product::class.java)
-                    if (product != null && product.name.startsWith(query, true)) {
-                        filteredProducts.add(product.copy(id = productSnap.key ?: ""))
+                    if (product != null) {
+                        if (query.isEmpty() || product.name.startsWith(query, true)) {
+                            filteredProducts.add(product.copy(id = productSnap.key ?: ""))
+                        }
                     }
                 }
                 productAdapter.updateProducts(filteredProducts)
