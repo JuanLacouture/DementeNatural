@@ -75,14 +75,14 @@
     <!-- Product List -->
 
     <!-- Summary List (moved here, just below productList) -->
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/productList"
-        android:layout_width="330dp"
-        android:layout_height="371dp"
+        android:layout_width="369dp"
+        android:layout_height="330dp"
         android:layout_marginTop="16dp"
         app:layout_constraintBottom_toTopOf="@id/summaryList"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.492"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/searchBarContainer"
         app:layout_constraintVertical_bias="0.0"

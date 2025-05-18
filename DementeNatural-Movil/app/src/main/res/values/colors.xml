@@ -6,4 +6,5 @@
     <color name="dark_text">#333333</color>
     <color name="white">#FFFFFF</color>
     <color name="light_gray">#DDDDDD</color>
+    <color name="divider_color">#373737</color>
 </resources>

@@ -26,7 +26,7 @@ class Registrar_Venta : AppCompatActivity() {
     private lateinit var confirmSaleButton: CardView
 
     private var total: Double = 0.0
-    private val selectedProducts = mutableMapOf<String, Int>() // ID producto -> Cantidad
+    private val selectedProducts = mutableMapOf<String, Int>()
     private var userSede: String? = null
 
     private lateinit var productAdapter: ProductAdapter
@@ -39,12 +39,14 @@ class Registrar_Venta : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_registrar_venta)
 
-        searchInput = findViewById(R.id.searchInput)
-        productList = findViewById(R.id.productList)
-        summaryList = findViewById(R.id.summaryList)
-        totalAmount = findViewById(R.id.totalAmount)
-        confirmSaleButton = findViewById(R.id.confirmSaleButton)
+        // --- VINCULACIÓN DE VISTAS ---
+        searchInput        = findViewById(R.id.searchInput)
+        productList        = findViewById(R.id.productList)
+        summaryList        = findViewById(R.id.summaryList)
+        totalAmount        = findViewById(R.id.totalAmount)
+        confirmSaleButton  = findViewById(R.id.confirmSaleButton)
 
+        // --- ADAPTERS ---
         productAdapter = ProductAdapter(emptyList(), selectedProducts) { prodId, newQty ->
             updateSummary(prodId, newQty)
             calculateTotal()
@@ -58,6 +60,7 @@ class Registrar_Venta : AppCompatActivity() {
 
         totalAmount.text = "0 COP"
 
+        // --- AL TOCAR EL EDIT TEXT: mostrar TODO la primera vez ---
         searchInput.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus && userSede != null && !userStartedTyping) {
                 userStartedTyping = true
@@ -68,17 +71,18 @@ class Registrar_Venta : AppCompatActivity() {
             }
         }
 
+        // --- FILTRO EN CADA TECLA ---
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 val query = s?.toString() ?: ""
                 if (userSede == null) return
                 searchProducts(query, userSede!!)
             }
-
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
 
+        // --- CONFIRMAR VENTA ---
         confirmSaleButton.setOnClickListener {
             confirmSale()
         }
@@ -86,20 +90,24 @@ class Registrar_Venta : AppCompatActivity() {
         loadUserSede()
     }
 
+    /**
+     * Interceptamos todos los TOUCH_EVENTS para detectar toques fuera
+     * del EditText y del RecyclerView de búsqueda.
+     */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (ev.action == MotionEvent.ACTION_DOWN) {
             val v = currentFocus
             if (v is EditText) {
-                // Rect para EditText
-                val outRectEditText = Rect()
-                v.getGlobalVisibleRect(outRectEditText)
-                // Rect para RecyclerView productList
-                val outRectRecyclerView = Rect()
-                productList.getGlobalVisibleRect(outRectRecyclerView)
+                // Rectángulo del EditText
+                val outRectEdit = Rect()
+                v.getGlobalVisibleRect(outRectEdit)
+                // Rectángulo del RecyclerView de resultados
+                val outRectList = Rect()
+                productList.getGlobalVisibleRect(outRectList)
 
-                // Si el toque no está ni en EditText ni en RecyclerView -> cerramos búsqueda
-                if (!outRectEditText.contains(ev.rawX.toInt(), ev.rawY.toInt()) &&
-                    !outRectRecyclerView.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
+                // Si el tap NO cae en ninguno de los dos, cerramos la búsqueda:
+                if (!outRectEdit.contains(ev.rawX.toInt(), ev.rawY.toInt()) &&
+                    !outRectList.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
                     v.clearFocus()
                     hideKeyboard(v)
                     productAdapter.updateProducts(emptyList())
@@ -110,6 +118,7 @@ class Registrar_Venta : AppCompatActivity() {
         return super.dispatchTouchEvent(ev)
     }
 
+    /** Oculta el teclado físico al usuario. */
     private fun hideKeyboard(view: View) {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(view.windowToken, 0)
@@ -121,52 +130,60 @@ class Registrar_Venta : AppCompatActivity() {
             .orderByChild("email").equalTo(user?.email)
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    userSede = snapshot.children.firstOrNull()?.getValue(User::class.java)?.sede
+                    userSede = snapshot.children
+                        .firstOrNull()
+                        ?.getValue(User::class.java)
+                        ?.sede
                 }
-
                 override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(this@Registrar_Venta, "Error al cargar sede", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@Registrar_Venta,
+                        "Error al cargar sede",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             })
     }
 
     private fun searchProducts(query: String, sede: String) {
         val ref = FirebaseDatabase.getInstance().getReference("Inventario")
-        ref.orderByChild("sede").equalTo(sede).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val filteredProducts = mutableListOf<Product>()
-                for (productSnap in snapshot.children) {
-                    val product = productSnap.getValue(Product::class.java)
-                    if (product != null) {
-                        if (query.isEmpty() || product.name.startsWith(query, true)) {
-                            filteredProducts.add(product.copy(id = productSnap.key ?: ""))
+        ref.orderByChild("sede").equalTo(sede)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val filtered = mutableListOf<Product>()
+                    for (snap in snapshot.children) {
+                        val p = snap.getValue(Product::class.java) ?: continue
+                        if (query.isEmpty() || p.name.startsWith(query, true)) {
+                            filtered.add(p.copy(id = snap.key ?: ""))
                         }
                     }
+                    productAdapter.updateProducts(filtered)
                 }
-                productAdapter.updateProducts(filteredProducts)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@Registrar_Venta, "Error en búsqueda", Toast.LENGTH_SHORT).show()
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    Toast.makeText(
+                        this@Registrar_Venta,
+                        "Error en búsqueda",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            })
     }
 
     private fun updateSummary(prodId: String, qty: Int) {
-        val index = summaryItems.indexOfFirst { it.id == prodId }
+        val idx = summaryItems.indexOfFirst { it.id == prodId }
         val prod = productAdapter.currentProducts.firstOrNull { it.id == prodId }
         if (qty == 0) {
-            if (index >= 0) {
-                summaryItems.removeAt(index)
-                summaryAdapter.notifyItemRemoved(index)
+            if (idx >= 0) {
+                summaryItems.removeAt(idx)
+                summaryAdapter.notifyItemRemoved(idx)
             }
             selectedProducts.remove(prodId)
         } else {
             if (prod == null) return
             val item = SummaryItem(prodId, prod.name, qty, prod.price * qty)
-            if (index >= 0) {
-                summaryItems[index] = item
-                summaryAdapter.notifyItemChanged(index)
+            if (idx >= 0) {
+                summaryItems[idx] = item
+                summaryAdapter.notifyItemChanged(idx)
             } else {
                 summaryItems.add(item)
                 summaryAdapter.notifyItemInserted(summaryItems.size - 1)
@@ -176,10 +193,7 @@ class Registrar_Venta : AppCompatActivity() {
     }
 
     private fun calculateTotal() {
-        total = 0.0
-        summaryItems.forEach {
-            total += it.subtotal
-        }
+        total = summaryItems.sumOf { it.subtotal }
         totalAmount.text = "%,.2f COP".format(total)
     }
 
@@ -188,33 +202,25 @@ class Registrar_Venta : AppCompatActivity() {
             Toast.makeText(this, "Agrega productos primero", Toast.LENGTH_SHORT).show()
             return
         }
-
         val userEmail = FirebaseAuth.getInstance().currentUser?.email
-        if (userEmail == null) {
-            Toast.makeText(this, "Error: usuario no autenticado", Toast.LENGTH_SHORT).show()
-            return
-        }
+            ?: return Toast.makeText(this, "Error: usuario no autenticado", Toast.LENGTH_SHORT).show()
 
         val ventasRef = FirebaseDatabase.getInstance().getReference("Ventas")
-        val saleId = ventasRef.push().key
-        if (saleId == null) {
-            Toast.makeText(this, "Error al generar ID de venta", Toast.LENGTH_SHORT).show()
-            return
-        }
+        val saleId   = ventasRef.push().key
+            ?: return Toast.makeText(this, "Error al generar ID de venta", Toast.LENGTH_SHORT).show()
 
         val inventarioRef = FirebaseDatabase.getInstance().getReference("Inventario")
-
         inventarioRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val updates = hashMapOf<String, Any>()
                 val errores = mutableListOf<String>()
 
                 selectedProducts.forEach { (id, qty) ->
-                    val product = snapshot.child(id).getValue(Product::class.java)
+                    val prod = snapshot.child(id).getValue(Product::class.java)
                     when {
-                        product == null -> errores.add("Producto no encontrado: $id")
-                        product.quantity < qty -> errores.add("${product.name} (Stock: ${product.quantity})")
-                        else -> updates["$id/quantity"] = product.quantity - qty
+                        prod == null                -> errores.add("Producto no encontrado: $id")
+                        prod.quantity < qty         -> errores.add("${prod.name} (Stock: ${prod.quantity})")
+                        else                        -> updates["$id/quantity"] = prod.quantity - qty
                     }
                 }
 
@@ -227,26 +233,21 @@ class Registrar_Venta : AppCompatActivity() {
                     return
                 }
 
-                val sale = Sale(
-                    saleId = saleId,
-                    email = userEmail,
-                    products = selectedProducts.toMap(),
-                    total = total
-                )
-
+                val sale = Sale(saleId, userEmail, selectedProducts.toMap(), total)
                 ventasRef.child(saleId).setValue(sale)
                     .addOnSuccessListener {
-                        inventarioRef.updateChildren(updates).addOnSuccessListener {
-                            selectedProducts.clear()
-                            summaryItems.clear()
-                            summaryAdapter.notifyDataSetChanged()
-                            calculateTotal()
-                            Toast.makeText(
-                                this@Registrar_Venta,
-                                "Venta registrada exitosamente",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                        inventarioRef.updateChildren(updates)
+                            .addOnSuccessListener {
+                                selectedProducts.clear()
+                                summaryItems.clear()
+                                summaryAdapter.notifyDataSetChanged()
+                                calculateTotal()
+                                Toast.makeText(
+                                    this@Registrar_Venta,
+                                    "Venta registrada exitosamente",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                     }
                     .addOnFailureListener {
                         Toast.makeText(
@@ -256,7 +257,6 @@ class Registrar_Venta : AppCompatActivity() {
                         ).show()
                     }
             }
-
             override fun onCancelled(error: DatabaseError) {
                 Toast.makeText(this@Registrar_Venta, "Error de conexión", Toast.LENGTH_SHORT).show()
             }

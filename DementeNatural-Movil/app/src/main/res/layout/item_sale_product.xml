@@ -1,41 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingVertical="16dp"
-    android:background="@android:color/white">
+    android:background="@drawable/bg_item_rounded"
+    android:paddingHorizontal="24dp"
+    android:paddingVertical="16dp">
 
     <TextView
         android:id="@+id/productName"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Collar étnico"
         android:textColor="@color/dark_text"
         android:textSize="18sp"
         android:textStyle="bold"
-        android:fontFamily="sans-serif"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/decrementButton"/>
 
     <TextView
         android:id="@+id/productPrice"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="25.000 COP"
         android:textColor="@color/dark_brown"
         android:textSize="22sp"
         android:textStyle="bold"
-        android:fontFamily="sans-serif"
         android:layout_marginTop="4dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/productName" />
+        app:layout_constraintTop_toBottomOf="@id/productName"
+        app:layout_constraintEnd_toStartOf="@id/decrementButton"/>
 
     <LinearLayout
+        android:id="@+id/quantitySelector"
         android:layout_width="wrap_content"
         android:layout_height="36dp"
         android:orientation="horizontal"
-        android:layout_marginStart="16dp"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_item_rounded"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
@@ -44,31 +48,37 @@
             android:id="@+id/decrementButton"
             android:layout_width="36dp"
             android:layout_height="match_parent"
-            android:text="-"
+            android:gravity="center"
+            android:text="–"
             android:textSize="20sp"
-            android:textColor="@color/dark_text"
-            android:background="@drawable/decrement_button_background"
-            android:gravity="center" />
+            android:textColor="@color/dark_text" />
 
         <TextView
             android:id="@+id/quantityText"
             android:layout_width="36dp"
             android:layout_height="match_parent"
-            android:text="1"
+            android:gravity="center"
+            android:text="0"
             android:textSize="18sp"
             android:textColor="@color/dark_text"
-            android:background="@color/cream"
-            android:gravity="center" />
+            android:background="@color/cream" />
 
         <TextView
             android:id="@+id/incrementButton"
             android:layout_width="36dp"
             android:layout_height="match_parent"
+            android:gravity="center"
             android:text="+"
             android:textSize="20sp"
-            android:textColor="@color/dark_text"
-            android:background="@drawable/increment_button_background"
-            android:gravity="center" />
+            android:textColor="@color/dark_text" />
     </LinearLayout>
 
+    <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:background="@color/divider_color"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/productPrice"/>
 </androidx.constraintlayout.widget.ConstraintLayout>
