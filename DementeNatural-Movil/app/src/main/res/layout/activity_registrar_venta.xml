@@ -76,33 +76,35 @@
 
     <!-- Summary List (moved here, just below productList) -->
 
+    <!-- Divider line -->
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/productList"
-        android:layout_width="369dp"
-        android:layout_height="330dp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintBottom_toTopOf="@id/summaryList"
+        android:layout_width="380dp"
+        android:layout_height="336dp"
+        app:layout_constraintBottom_toTopOf="@+id/divider"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.555"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/searchBarContainer"
-        app:layout_constraintVertical_bias="0.0"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.232"
         tools:listitem="@layout/item_sale_product" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/summaryList"
-        android:layout_width="0dp"
-        android:layout_height="120dp"
+        android:layout_width="358dp"
+        android:layout_height="182dp"
         android:layout_marginStart="24dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="24dp"
+        app:layout_constraintBottom_toBottomOf="@+id/totalContainer"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/productList"
-        app:layout_constraintBottom_toTopOf="@id/divider"
+        app:layout_constraintVertical_bias="0.0"
         tools:listitem="@layout/item_summary_product" />
 
-    <!-- Divider line -->
     <View
         android:id="@+id/divider"
         android:layout_width="match_parent"
