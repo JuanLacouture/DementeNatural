@@ -1,5 +1,6 @@
 package com.example.dementenatural
 
+import android.content.Intent
 import android.graphics.Rect
 import android.os.Bundle
 import android.text.Editable
@@ -60,7 +61,7 @@ class Registrar_Venta : AppCompatActivity() {
 
         totalAmount.text = "0 COP"
 
-        // --- AL TOCAR EL EDIT TEXT: mostrar TODO la primera vez ---
+        // --- AL TOCAR EL EDIT TEXT: mostrar TODOS la primera vez ---
         searchInput.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus && userSede != null && !userStartedTyping) {
                 userStartedTyping = true
@@ -91,23 +92,18 @@ class Registrar_Venta : AppCompatActivity() {
     }
 
     /**
-     * Interceptamos todos los TOUCH_EVENTS para detectar toques fuera
-     * del EditText y del RecyclerView de búsqueda.
+     * Detecta taps fuera del EditText y del RecyclerView para
+     * cerrar la lista de resultados.
      */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (ev.action == MotionEvent.ACTION_DOWN) {
             val v = currentFocus
             if (v is EditText) {
-                // Rectángulo del EditText
-                val outRectEdit = Rect()
-                v.getGlobalVisibleRect(outRectEdit)
-                // Rectángulo del RecyclerView de resultados
-                val outRectList = Rect()
-                productList.getGlobalVisibleRect(outRectList)
-
-                // Si el tap NO cae en ninguno de los dos, cerramos la búsqueda:
-                if (!outRectEdit.contains(ev.rawX.toInt(), ev.rawY.toInt()) &&
-                    !outRectList.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
+                val outRectEdit = Rect().also { v.getGlobalVisibleRect(it) }
+                val outRectList = Rect().also { productList.getGlobalVisibleRect(it) }
+                if (!outRectEdit.contains(ev.rawX.toInt(), ev.rawY.toInt())
+                    && !outRectList.contains(ev.rawX.toInt(), ev.rawY.toInt())
+                ) {
                     v.clearFocus()
                     hideKeyboard(v)
                     productAdapter.updateProducts(emptyList())
@@ -118,7 +114,6 @@ class Registrar_Venta : AppCompatActivity() {
         return super.dispatchTouchEvent(ev)
     }
 
-    /** Oculta el teclado físico al usuario. */
     private fun hideKeyboard(view: View) {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(view.windowToken, 0)
@@ -203,13 +198,13 @@ class Registrar_Venta : AppCompatActivity() {
             return
         }
         val userEmail = FirebaseAuth.getInstance().currentUser?.email
-            ?: return Toast.makeText(this, "Error: usuario no autenticado", Toast.LENGTH_SHORT).show()
+            ?: return Toast.makeText(this, "Usuario no autenticado", Toast.LENGTH_SHORT).show()
 
-        val ventasRef = FirebaseDatabase.getInstance().getReference("Ventas")
-        val saleId   = ventasRef.push().key
-            ?: return Toast.makeText(this, "Error al generar ID de venta", Toast.LENGTH_SHORT).show()
-
+        val ventasRef     = FirebaseDatabase.getInstance().getReference("Ventas")
+        val saleId        = ventasRef.push().key
+            ?: return Toast.makeText(this, "Error generando ID", Toast.LENGTH_SHORT).show()
         val inventarioRef = FirebaseDatabase.getInstance().getReference("Inventario")
+
         inventarioRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val updates = hashMapOf<String, Any>()
@@ -218,9 +213,9 @@ class Registrar_Venta : AppCompatActivity() {
                 selectedProducts.forEach { (id, qty) ->
                     val prod = snapshot.child(id).getValue(Product::class.java)
                     when {
-                        prod == null                -> errores.add("Producto no encontrado: $id")
-                        prod.quantity < qty         -> errores.add("${prod.name} (Stock: ${prod.quantity})")
-                        else                        -> updates["$id/quantity"] = prod.quantity - qty
+                        prod == null            -> errores.add("No existe: $id")
+                        prod.quantity < qty     -> errores.add("${prod.name} (Stock: ${prod.quantity})")
+                        else                    -> updates["$id/quantity"] = prod.quantity - qty
                     }
                 }
 
@@ -236,18 +231,19 @@ class Registrar_Venta : AppCompatActivity() {
                 val sale = Sale(saleId, userEmail, selectedProducts.toMap(), total)
                 ventasRef.child(saleId).setValue(sale)
                     .addOnSuccessListener {
-                        inventarioRef.updateChildren(updates)
-                            .addOnSuccessListener {
-                                selectedProducts.clear()
-                                summaryItems.clear()
-                                summaryAdapter.notifyDataSetChanged()
-                                calculateTotal()
-                                Toast.makeText(
-                                    this@Registrar_Venta,
-                                    "Venta registrada exitosamente",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                        inventarioRef.updateChildren(updates).addOnSuccessListener {
+                            selectedProducts.clear()
+                            summaryItems.clear()
+                            summaryAdapter.notifyDataSetChanged()
+                            calculateTotal()
+                            Toast.makeText(
+                                this@Registrar_Venta,
+                                "Venta registrada exitosamente",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            // Al confirmar, volvemos a Menu_Trabajador
+                            finish()
+                        }
                     }
                     .addOnFailureListener {
                         Toast.makeText(
